@@ -1,0 +1,35 @@
+defaults:
+  - model_checkpoint
+  - early_stopping
+  - model_summary
+  - rich_progress_bar
+  - _self_
+
+model_checkpoint:
+  dirpath: ${paths.output_dir}/checkpoints
+  filename: "epoch_{epoch:03d}"
+  monitor: "validation/val_loss" # name of the logged metric which determines when model is improving
+  mode: "min"
+  save_top_k: 3 # save k best models (determined by above metric)
+  save_last: True
+  auto_insert_metric_name: False
+
+early_stopping:
+  monitor: "validation/ema_loss" # name of the logged metric which determines when model is improving
+  mode: "min" # "max" means higher metric value is better, can be also "min"
+  patience: 25 # how many validation epochs of not improving until training stops
+  min_delta: 1e-6 # minimum change in the monitored metric needed to qualify as an improvement
+
+
+model_summary:
+  max_depth: 5
+
+
+ema_loss:
+  _target_: src.models.components.callbacks.EMALossCallback
+  alpha: 0.9
+  soft_beta: 2.5
+
+
+#learning_rate_monitor:
+#  _target_: lightning.pytorch.callbacks.LearningRateMonitor

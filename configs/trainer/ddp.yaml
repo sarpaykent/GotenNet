@@ -1,0 +1,10 @@
+defaults:
+  - default
+
+strategy: ddp_find_unused_parameters_false
+
+accelerator: gpu
+devices: 1
+num_nodes: 1
+sync_batchnorm: True
+gradient_clip_val: 5.0

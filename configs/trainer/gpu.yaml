@@ -1,0 +1,8 @@
+defaults:
+  - default
+
+accelerator: gpu
+devices: 1
+
+max_epochs: 1000
+gradient_clip_val: 5.0

@@ -1,0 +1,46 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /data: qm9.yaml
+  - override /model: gotennet.yaml
+  - override /callbacks: default.yaml
+  - override /trainer: gpu.yaml
+
+datamodule:
+  hparams:
+    batch_size: 32
+    seed: 1
+    standardize: false
+
+model:
+  lr: 0.0001
+  lr_warmup_steps: 10000
+  lr_monitor: "validation/val_loss"
+  lr_decay: 0.8
+  lr_minlr: 1.e-07
+  lr_patience: 15
+  weight_decay: 0.0
+  task_config:
+    task_loss: "MSELoss"
+  representation:
+    n_interactions: 4
+    n_atom_basis: 256
+    radial_basis: "expnorm"
+    n_rbf: 64
+    attn_dropout: 0.1
+    edge_updates: "norej_gatedt"
+    scale_edge: false
+    lmax: 2
+
+  output:
+    n_hidden: 256
+
+callbacks:
+  early_stopping:
+    monitor: "validation/val_loss" # name of the logged metric which determines when model is improving
+    patience: 150 # how many validation epochs of not improving until training stops
+
+label: "U0"
