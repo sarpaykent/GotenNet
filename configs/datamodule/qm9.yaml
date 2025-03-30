@@ -1,0 +1,32 @@
+_target_: gotennet.datamodules.datamodule.DataModule
+
+hparams:
+  dataset: QM9
+  dataset_arg:
+  dataset_root: ${paths.data_dir} # data_path is specified in config.yaml
+  derivative: false
+  split_mode: null
+  reload: 0
+  batch_size: 32
+  inference_batch_size: 128
+  standardize: false
+  splits: null
+  train_size: 110000
+  val_size: 10000
+  test_size: null
+  num_workers: 12
+  seed: 1
+  output_dir: ${paths.output_dir}
+  ngpus: 1
+  num_nodes: 1
+  precision: 32
+  task: train
+  distributed_backend: ddp
+  redirect: false
+  accelerator: gpu
+  test_interval: 10
+  save_interval: 1
+  prior_model: Atomref
+  normalize_positions: false
+
+

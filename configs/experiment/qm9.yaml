@@ -1,0 +1,40 @@
+# @package _global_
+
+defaults:
+  - override /datamodule: qm9.yaml
+  - override /model: gotennet.yaml
+  - override /callbacks: default.yaml
+  - override /logger: wandb.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - override /trainer: default.yaml
+
+datamodule:
+  hparams:
+    batch_size: 32
+    seed: 1
+    standardize: false
+
+model:
+  lr: 0.0001
+  lr_warmup_steps: 10000
+  lr_monitor: "validation/val_loss"
+  lr_minlr: 1.e-07
+  lr_patience: 15
+  weight_decay: 0.0
+  task_config:
+    task_loss: "MSELoss"
+  representation:
+    n_interactions: 4
+    n_atom_basis: 256
+    radial_basis: "expnorm"
+    n_rbf: 64
+  output:
+    n_hidden: 256
+
+callbacks:
+  early_stopping:
+    monitor: "validation/val_loss" # name of the logged metric which determines when model is improving
+    patience: 150 # how many validation epochs of not improving until training stops
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: "validation/MeanAbsoluteError_${label}" # name of the logged metric which determines when model is improving
+

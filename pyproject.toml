@@ -1,25 +1,106 @@
-[tool.pytest.ini_options]
-addopts = [
-  "--color=yes",
-  "--durations=0",
-  "--strict-markers",
-  "--doctest-modules",
-]
-filterwarnings = [
-  "ignore::DeprecationWarning",
-  "ignore::UserWarning",
-]
-log_cli = "True"
-markers = [
-  "slow: slow tests",
-]
-minversion = "6.0"
-testpaths = "tests/"
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
 
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: nocover",
-    "raise NotImplementedError",
-    "raise NotImplementedError()",
-    "if __name__ == .__main__.:",
+[project]
+name = "gotennet"
+version = "1.0.0"
+description = "GotenNet: Rethinking Efficient 3D Equivariant Graph Neural Networks"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "GotenNet Authors"}
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+    "torch>=2.5.0",
+    "torchvision",
+    "torchaudio",
+    "torch_geometric",
+    "e3nn",
+    "pyg_lib",
+    "torch_scatter",
+    "torch_sparse",
+    "torch_cluster",
+    "torch_spline_conv",
+    "lightning==2.2.5",
+    "pytorch_lightning==2.2.5",
+    "hydra-core",
+    "python-dotenv",
+    "pyrootutils",
+    "wandb",
+    "rich",
+    "hydra-optuna-sweeper",
+    "hydra-colorlog",
+    "ase",
+    "scikit-learn",
+    "pandas",
+    "rdkit",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "black",
+    "isort",
+    "pytest",
+    "pytest-cov",
+    "mypy",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/sarpaykent/gotennet"
+"Bug Tracker" = "https://github.com/sarpaykent/gotennet/issues"
+
+[project.scripts]
+train_gotennet = "gotennet.scripts.train:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["gotennet"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "gotennet/**/*.py",
+    "gotennet/**/*.yaml",
+    "gotennet/**/*.yml",
+    "LICENSE",
+    "README.md",
+    "pyproject.toml",
+    "gotennet/scripts/train.py",
+    "configs/**/*.yaml",
+    "configs/**/*.yml"
+]
+
+[tool.ruff]
+target-version = "py310"
+lint.select = ["F", "B", "I"]
+lint.ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["gotennet"]
+
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = ["torch.*", "lightning.*", "hydra.*", "omegaconf.*", "wandb.*", "pyrootutils.*", "dotenv.*"]
+ignore_missing_imports = true

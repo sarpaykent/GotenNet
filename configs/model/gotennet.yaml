@@ -1,9 +1,9 @@
-_target_: src.models.gotennet_module.GotenNetModule
+_target_: gotennet.models.goten_model.GotenModel
 label: ${label}
 task: ${task}
 
 cutoff: 5.0
-lr: 0.0005
+lr: 0.0001
 lr_decay: 0.8
 lr_patience: 5
 lr_monitor: "validation/ema_loss"
@@ -11,30 +11,32 @@ ema_decay: 0.9
 weight_decay: 0.01
 
 output:
-  n_hidden: 256 
+  n_hidden: 256
 
 representation:
-  _target_: src.models.representation.gotennet.GotenNet
-  n_atom_basis: 128
-  n_interactions: 3
-  n_rbf: 20
+  _target_: gotennet.models.representation.gotennet.GotenNetWrapper
+  n_atom_basis: 256
+  n_interactions: 4
+  n_rbf: 32
   cutoff_fn:
-    _target_: src.models.components.ops.CosineCutoff
+    _target_: gotennet.models.components.layers.CosineCutoff
     cutoff: 5.0
   radial_basis: 'expnorm'
   activation: "swish"
   max_z: 100
   weight_init: "xavier_uniform"
   bias_init: "zeros"
-  int_layer_norm: ""
-  int_vector_norm: ""
   num_heads: 8
   attn_dropout: 0.1
-  edge_updates: 'norej'
-  aggr: "add"
-  edge_ln: ''
-  sep_int_vec: True
+  edge_updates: True
   lmax: 2
+  aggr: "add"
+  scale_edge: False
+  evec_dim:
+  emlp_dim:
+  sep_htr: True
+  sep_dir: True
+  sep_tensor: True
 
 #task_config:
 #  name: "Test"
