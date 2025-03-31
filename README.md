@@ -5,6 +5,7 @@
 [![Paper](https://img.shields.io/badge/Paper-ICLR%202025-blue)](https://openreview.net/pdf?id=5wxCQDtbMo)
 [![Project Page](https://img.shields.io/badge/Project-Website-green)](https://www.sarpaykent.com/publications/gotennet/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![PyPI - Version](https://img.shields.io/pypi/v/gotennet)](https://pypi.org/project/gotennet/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 
 </div>
