@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gotennet"
-version = "1.0.0"
+version = "1.0.1"
 description = "GotenNet: Rethinking Efficient 3D Equivariant Graph Neural Networks"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = { file = "LICENSE" }
 authors = [
     {name = "GotenNet Authors"}
 ]
@@ -22,17 +22,25 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Scientific/Engineering :: Chemistry",
 ]
+# Core dependencies needed to import and use the GotenNet model
 dependencies = [
+    "numpy",
     "torch>=2.5.0",
-    "torchvision",
-    "torchaudio",
     "torch_geometric",
-    "e3nn",
-    "pyg_lib",
     "torch_scatter",
     "torch_sparse",
     "torch_cluster",
-    "torch_spline_conv",
+    "e3nn",
+    "ase",
+]
+
+[project.optional-dependencies]
+# Dependencies for training, data handling, logging, and utilities
+full = [
+    "torchvision",
+    "torchaudio",
+    "pyg_lib", 
+    "torch_spline_conv", 
     "lightning==2.2.5",
     "pytorch_lightning==2.2.5",
     "hydra-core",
@@ -42,13 +50,11 @@ dependencies = [
     "rich",
     "hydra-optuna-sweeper",
     "hydra-colorlog",
-    "ase",
     "scikit-learn",
     "pandas",
     "rdkit",
+    "omegaconf", 
 ]
-
-[project.optional-dependencies]
 dev = [
     "ruff",
     "black",
