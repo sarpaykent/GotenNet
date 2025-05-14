@@ -95,7 +95,8 @@ class GATA(MessagePassing):
         sep_htr: bool = True,
         sep_dir: bool = True,
         sep_tensor: bool = True,
-        lmax: int = 2
+        lmax: int = 2,
+        edge_ln: str = "",
     ): 
         """
         Graph Attention Transformer Architecture.
@@ -232,7 +233,7 @@ class GATA(MessagePassing):
                 dims,
                 activation=activation,
                 last_activation=None if self.update_info["mlp"] else self.activation,
-                norm=""
+                norm=edge_ln
             )
 
             self.W_vq = InitDense(n_atom_basis, self.edge_vec_dim, activation=None, bias=False)
@@ -765,6 +766,7 @@ class GotenNet(nn.Module):
         sep_htr: bool = True,
         sep_dir: bool = False,
         sep_tensor: bool = False,
+        edge_ln: str = "",
     ):
         """
         Initialize GotenNet model.
@@ -835,7 +837,8 @@ class GotenNet(nn.Module):
                 edge_updates=edge_updates, last_layer=(i == self.n_interactions - 1),
                 scale_edge=scale_edge,
                 evec_dim=evec_dim, emlp_dim=emlp_dim,
-                sep_htr=sep_htr, sep_dir=sep_dir, sep_tensor=sep_tensor, lmax=lmax
+                sep_htr=sep_htr, sep_dir=sep_dir, sep_tensor=sep_tensor, lmax=lmax,
+                edge_ln=edge_ln
             ) for i in range(self.n_interactions)
         ])
 

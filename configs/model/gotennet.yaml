@@ -37,6 +37,7 @@ representation:
   sep_htr: True
   sep_dir: True
   sep_tensor: True
+  edge_ln: ""
 
 #task_config:
 #  name: "Test"
