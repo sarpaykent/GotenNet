@@ -179,17 +179,22 @@ def download_checkpoint(checkpoint_url: str) -> str:
     if is_name_style:
         task, size, label = parts[0], parts[1], parts[2]
 
+        task = task.lower()
+
         # --- Validation logic for task, size, label (as in previous examples) ---
         # Example (ensure TASK_DICT etc. are properly defined and accessible):
-        if task not in TASK_DICT:
+
+        tasks = [k.lower() for k in list(TASK_DICT.keys())]
+
+        if task not in tasks:
             raise ValueError(f"Task {task} is not supported or TASK_DICT not defined.")
 
         sizes = ["small", "base", "large"]
-        if task == "rMD17":
+        if task == "rmd17":
             sizes = ["base"]
         if size not in sizes:
             raise ValueError(f"Size {size} is not supported.")
-        if task == "QM9":
+        if task == "qm9":
             try:
                 from gotennet.datamodules.components.qm9 import qm9_target_dict
 
@@ -211,12 +216,15 @@ def download_checkpoint(checkpoint_url: str) -> str:
         # --- End of validation logic ---
 
         local_filename = (
+            f"gotennet_{task}_{size}_{label}.ckpt"  # Canonical local filename for this name
+        )
+        remote_filename = (
             f"gotennet_{label}.ckpt"  # Canonical local filename for this name
         )
 
         # Generate list of URLs to try for this name
         # Primary URL (Hugging Face)
-        primary_hf_url = f"https://huggingface.co/sarpaykent/GotenNet/resolve/main/pretrained/{task.lower()}/{size}/{local_filename}"
+        primary_hf_url = f"https://huggingface.co/sarpaykent/GotenNet/resolve/main/pretrained/{task}/{size}/{remote_filename}"
         urls_to_try.append(primary_hf_url)
 
         if len(urls_to_try) == 1:  # Only primary was added
@@ -240,7 +248,7 @@ def download_checkpoint(checkpoint_url: str) -> str:
         log.info(
             f"Interpreted '{checkpoint_url}' as a potential local path identifier. Effective local filename: {local_filename}"
         )
-        return ckpt_path
+        return checkpoint_url
 
     # 2. Construct local checkpoint path
 
