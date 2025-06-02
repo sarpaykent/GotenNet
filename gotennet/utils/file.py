@@ -246,7 +246,7 @@ def download_checkpoint(checkpoint_url: str) -> str:
     else:
         # urls_to_try remains empty; we'll only check for this path locally in the ckpt_dir
         log.info(
-            f"Interpreted '{checkpoint_url}' as a potential local path identifier. Effective local filename: {local_filename}"
+            f"Interpreted '{checkpoint_url}' as a potential local path identifier."
         )
         return checkpoint_url
 
