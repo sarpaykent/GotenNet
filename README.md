@@ -21,9 +21,9 @@ This is the official implementation of **"GotenNet: Rethinking Efficient 3D Equi
 GotenNet introduces a novel framework for modeling 3D molecular structures that achieves state-of-the-art performance while maintaining computational efficiency. Our approach balances expressiveness and efficiency through innovative tensor-based representations and attention mechanisms.
 
 ## Table of Contents
-  - [✨ Key Features](#✨-key-features)
-  - [🚀 Installation](#🚀-installation)
-    - [📦 From PyPI (Recommended)](#📦-from-pypi-recommended)
+  - [✨ Key Features](#-key-features)
+  - [🚀 Installation](#-installation)
+    - [📦 From PyPI (Recommended)](#-from-pypi-recommended)
     - [🔧 From Source](#🔧-from-source)
   - [🔬 Usage](#🔬-usage)
     - [Using the Model](#using-the-model)
@@ -31,9 +31,9 @@ GotenNet introduces a novel framework for modeling 3D molecular structures that 
     - [Training a Model](#training-a-model)
     - [Testing a Model](#testing-a-model)
     - [Configuration](#configuration)
-  - [🤝 Contributing](#🤝-contributing)
-  - [📚 Citation](#📚-citation)
-  - [📄 License](#📄-license)
+  - [🤝 Contributing](#-contributing)
+  - [📚 Citation](#-citation)
+  - [📄 License](#-license)
   - [Acknowledgements](#acknowledgements)
 
 ## ✨ Key Features
