@@ -4,68 +4,68 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gotennet"
-version = "1.0.1"
+version = "1.1.0"
 description = "GotenNet: Rethinking Efficient 3D Equivariant Graph Neural Networks"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
-    {name = "GotenNet Authors"}
+  { name = "GotenNet Authors" },
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Topic :: Scientific/Engineering",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Chemistry",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Chemistry",
 ]
 # Core dependencies needed to import and use the GotenNet model
 dependencies = [
-    "numpy",
-    "torch>=2.5.0",
-    "torch_geometric",
-    "torch_scatter",
-    "torch_sparse",
-    "torch_cluster",
-    "e3nn",
-    "ase",
+  "numpy",
+  "torch>=2.5.0",
+  "torch_geometric",
+  "torch_scatter",
+  "torch_sparse",
+  "torch_cluster",
+  "e3nn",
+  "ase",
 ]
 
 [project.optional-dependencies]
 # Dependencies for training, data handling, logging, and utilities
 full = [
-    "torchvision",
-    "torchaudio",
-    "pyg_lib", 
-    "torch_spline_conv", 
-    "lightning==2.2.5",
-    "pytorch_lightning==2.2.5",
-    "hydra-core",
-    "python-dotenv",
-    "pyrootutils",
-    "wandb",
-    "rich",
-    "hydra-optuna-sweeper",
-    "hydra-colorlog",
-    "scikit-learn",
-    "pandas",
-    "rdkit",
-    "omegaconf", 
+  "torchvision",
+  "torchaudio",
+  "pyg_lib",
+  "torch_spline_conv",
+  "lightning==2.2.5",
+  "pytorch_lightning==2.2.5",
+  "hydra-core",
+  "python-dotenv",
+  "pyrootutils",
+  "wandb",
+  "rich",
+  "hydra-optuna-sweeper",
+  "hydra-colorlog",
+  "scikit-learn",
+  "pandas",
+  "rdkit",
+  "omegaconf",
 ]
 dev = [
-    "ruff",
-    "black",
-    "isort",
-    "pytest",
-    "pytest-cov",
-    "mypy",
+  "ruff",
+  "black",
+  "isort",
+  "pytest",
+  "pytest-cov",
+  "mypy",
 ]
 docs = [
-    "sphinx",
-    "sphinx-rtd-theme",
+  "sphinx",
+  "sphinx-rtd-theme",
 ]
 
 [project.urls]
@@ -74,21 +74,22 @@ docs = [
 
 [project.scripts]
 train_gotennet = "gotennet.scripts.train:main"
+test_gotennet = "gotennet.scripts.test:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["gotennet"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "gotennet/**/*.py",
-    "gotennet/**/*.yaml",
-    "gotennet/**/*.yml",
-    "LICENSE",
-    "README.md",
-    "pyproject.toml",
-    "gotennet/scripts/train.py",
-    "configs/**/*.yaml",
-    "configs/**/*.yml"
+  "gotennet/**/*.py",
+  "gotennet/**/*.yaml",
+  "gotennet/**/*.yml",
+  "LICENSE",
+  "README.md",
+  "pyproject.toml",
+  "gotennet/scripts/train.py",
+  "gotennet/configs/**/*.yaml",
+  "gotennet/configs/**/*.yml",
 ]
 
 [tool.ruff]
@@ -98,7 +99,6 @@ lint.ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["gotennet"]
-
 
 [tool.mypy]
 python_version = "3.10"

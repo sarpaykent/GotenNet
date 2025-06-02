@@ -20,12 +20,29 @@ This is the official implementation of **"GotenNet: Rethinking Efficient 3D Equi
 
 GotenNet introduces a novel framework for modeling 3D molecular structures that achieves state-of-the-art performance while maintaining computational efficiency. Our approach balances expressiveness and efficiency through innovative tensor-based representations and attention mechanisms.
 
+## Table of Contents
+  - [✨ Key Features](#✨-key-features)
+  - [🚀 Installation](#🚀-installation)
+    - [📦 From PyPI (Recommended)](#📦-from-pypi-recommended)
+    - [🔧 From Source](#🔧-from-source)
+  - [🔬 Usage](#🔬-usage)
+    - [Using the Model](#using-the-model)
+    - [Loading Pre-trained Models Programmatically](#loading-pre-trained-models-programmatically)
+    - [Training a Model](#training-a-model)
+    - [Testing a Model](#testing-a-model)
+    - [Configuration](#configuration)
+  - [🤝 Contributing](#🤝-contributing)
+  - [📚 Citation](#📚-citation)
+  - [📄 License](#📄-license)
+  - [Acknowledgements](#acknowledgements)
+
 ## ✨ Key Features
 
 - 🔄 **Effective Geometric Tensor Representations**: Leverages geometric tensors without relying on irreducible representations or Clebsch-Gordan transforms
 - 🧩 **Unified Structural Embedding**: Introduces geometry-aware tensor attention for improved molecular representation
 - 📊 **Hierarchical Tensor Refinement**: Implements a flexible and efficient representation scheme
 - 🏆 **State-of-the-Art Performance**: Achieves superior results on QM9, rMD17, MD22, and Molecule3D datasets
+- 📈 **Load Pre-trained Models**: Easily load and use pre-trained model checkpoints by name, URL, or local path, with automatic download capabilities.
 
 ## 🚀 Installation
 
@@ -117,6 +134,42 @@ h, X = wrapped_model(data)
 
 ```
 
+### Loading Pre-trained Models Programmatically
+
+You can easily load pre-trained `GotenModel` instances programmatically using the `from_pretrained` class method. This method can accept a model alias (which will be resolved to a download URL), a direct HTTPS URL to a checkpoint file, or a local file path. It handles automatic downloading and caching of checkpoints. Pre-trained model weights and aliases are hosted on the [GotenNet Hugging Face Model Hub](https://huggingface.co/sarpaykent/GotenNet).
+
+```python
+from gotennet.models import GotenModel
+
+# Example 1: Load by model alias 
+# This will automatically download from a known location if not found locally.
+# The format is {dataset}_{size}_{target}
+model_by_alias = GotenModel.from_pretrained("QM9_small_homo") 
+
+# Example 2: Load from a direct URL
+model_url = "https://huggingface.co/sarpaykent/GotenNet/resolve/main/pretrained/qm9/small/gotennet_homo.ckpt" # Replace with an actual URL
+model_by_url = GotenModel.from_pretrained(model_url)
+
+# Example 3: Load from a local file path
+local_model_path = "/path/to/your/local_model.ckpt" 
+model_by_path = GotenModel.from_pretrained(local_model_path)
+
+# After loading, the model is ready for inference:
+predictions = model_by_alias(data_input) 
+```
+
+For more advanced scenarios, if you only need to load the base `GotenNet` representation module from a local checkpoint (e.g., a checkpoint that only contains representation weights), you can use:
+
+```python
+from gotennet.models.representation import GotenNet, GotenNetWrapper
+
+# Example: Load a GotenNet representation from a local file
+representation_checkpoint_path = "/path/to/your/local_model.ckpt" 
+gotennet_model = GotenNet.load_from_checkpoint(representation_checkpoint_path)
+# or
+gotennet_wrapped = GotenNetWrapper.load_from_checkpoint(representation_checkpoint_path)
+```
+
 ### Training a Model
 
 After installation, you can use the `train_gotennet` command:
@@ -136,6 +189,27 @@ Both methods use Hydra for configuration. You can reproduce U0 target prediction
 ```bash
 train_gotennet experiment=qm9_u0.yaml
 ```
+
+### Testing a Model
+
+To evaluate a trained model, you can use the `test_gotennet` script. When you provide a checkpoint, the script can infer necessary configurations (like dataset and task details) directly from the checkpoint file. This script leverages the `GotenModel.from_pretrained` capabilities, allowing you to specify the model to test by its alias, a direct URL, or a local file path, handling automatic downloads.
+
+Here's how you can use it:
+
+```bash
+# Option 1: Test by model alias (e.g., QM9_small_homo)
+# The script will automatically download the checkpoint and infer configurations.
+test_gotennet checkpoint=QM9_small_homo
+
+# Option 2: Test with a direct checkpoint URL
+# The script will automatically download the checkpoint and infer configurations.
+test_gotennet checkpoint=https://huggingface.co/sarpaykent/GotenNet/resolve/main/pretrained/qm9/small/gotennet_homo.ckpt
+
+# Option 3: Test with a local checkpoint file path
+test_gotennet checkpoint=/path/to/your/local_model.ckpt
+```
+
+The script uses [Hydra](https://hydra.cc/) for any additional or overriding configurations if needed, but for straightforward evaluation of a checkpoint, only the `checkpoint` argument is typically required.
 
 ### Configuration
 

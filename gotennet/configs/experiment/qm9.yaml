@@ -37,5 +37,3 @@ callbacks:
   model_checkpoint:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
     monitor: "validation/MeanAbsoluteError_${label}" # name of the logged metric which determines when model is improving
-
-label: "U0"

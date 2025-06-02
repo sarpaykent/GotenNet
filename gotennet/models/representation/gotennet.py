@@ -37,10 +37,10 @@ num_nodes = hidden_dims = 1
 def get_split_sizes_from_lmax(lmax: int, start: int = 1) -> List[int]:
     """
     Return split sizes for torch.split based on lmax.
-    
+
     This function calculates the dimensions of spherical harmonic components
     for each angular momentum value from start to lmax.
-    
+
     Args:
         lmax: Maximum angular momentum value
         start: Starting angular momentum value (default: 1)
@@ -51,13 +51,15 @@ def get_split_sizes_from_lmax(lmax: int, start: int = 1) -> List[int]:
     return [2 * l + 1 for l in range(start, lmax + 1)]
 
 
-def split_to_components(tensor: Tensor, lmax: int, start: int = 1, dim: int = -1) -> List[Tensor]:
+def split_to_components(
+    tensor: Tensor, lmax: int, start: int = 1, dim: int = -1
+) -> List[Tensor]:
     """
     Split a tensor into its spherical harmonic components.
-    
+
     This function splits a tensor containing concatenated spherical harmonic components
     into a list of separate tensors, each corresponding to a specific angular momentum.
-    
+
     Args:
         tensor: The tensor to split [*, sum(2l+1 for l in range(start, lmax+1)), *]
         lmax: Maximum angular momentum value
@@ -97,10 +99,10 @@ class GATA(MessagePassing):
         sep_tensor: bool = True,
         lmax: int = 2,
         edge_ln: str = "",
-    ): 
+    ):
         """
         Graph Attention Transformer Architecture.
-        
+
         Args:
             n_atom_basis: Number of features to describe atomic environments.
             activation: Activation function to be used. If None, no activation function is used.
@@ -146,12 +148,23 @@ class GATA(MessagePassing):
 
         update_parts = edge_updates.split("_") if isinstance(edge_updates, str) else []
         allowed_parts = [
-            "gated", "gatedt", "norej", "norm", "mlp", "mlpa",
-            "act", "linw", "linwa", "ln", "postln"
+            "gated",
+            "gatedt",
+            "norej",
+            "norm",
+            "mlp",
+            "mlpa",
+            "act",
+            "linw",
+            "linwa",
+            "ln",
+            "postln",
         ]
 
         if not all([part in allowed_parts for part in update_parts]):
-            raise ValueError(f"Invalid edge update parts. Allowed parts are {allowed_parts}")
+            raise ValueError(
+                f"Invalid edge update parts. Allowed parts are {allowed_parts}"
+            )
 
         if "gated" in update_parts:
             update_info["gated"] = "gated"
@@ -233,18 +246,26 @@ class GATA(MessagePassing):
                 dims,
                 activation=activation,
                 last_activation=None if self.update_info["mlp"] else self.activation,
-                norm=edge_ln
+                norm=edge_ln,
             )
 
-            self.W_vq = InitDense(n_atom_basis, self.edge_vec_dim, activation=None, bias=False)
+            self.W_vq = InitDense(
+                n_atom_basis, self.edge_vec_dim, activation=None, bias=False
+            )
 
             if self.sep_htr:
-                self.W_vk = nn.ModuleList([
-                    InitDense(n_atom_basis, self.edge_vec_dim, activation=None, bias=False)
-                    for _i in range(self.lmax)
-                ])
+                self.W_vk = nn.ModuleList(
+                    [
+                        InitDense(
+                            n_atom_basis, self.edge_vec_dim, activation=None, bias=False
+                        )
+                        for _i in range(self.lmax)
+                    ]
+                )
             else:
-                self.W_vk = InitDense(n_atom_basis, self.edge_vec_dim, activation=None, bias=False)
+                self.W_vk = InitDense(
+                    n_atom_basis, self.edge_vec_dim, activation=None, bias=False
+                )
 
             modules = []
             if self.update_info["lin_w"] > 0:
@@ -257,7 +278,7 @@ class GATA(MessagePassing):
                     self.edge_vec_dim,
                     n_atom_basis,
                     activation=None,
-                    norm="layer" if self.update_info["lin_ln"] == 2 else ""
+                    norm="layer" if self.update_info["lin_ln"] == 2 else "",
                 )
 
                 modules.append(self.W_edp)
@@ -269,7 +290,6 @@ class GATA(MessagePassing):
             elif self.update_info["gated"] == "act":
                 modules.append(nn.SiLU())
             self.gamma_w = nn.Sequential(*modules)
-
 
         # Cutoff function
         self.cutoff = CosineCutoff(cutoff)
@@ -285,10 +305,13 @@ class GATA(MessagePassing):
         # Normalization layers
         self.layernorm_ = layer_norm
         self.steerable_norm_ = steerable_norm
-        self.layernorm = nn.LayerNorm(n_atom_basis) if layer_norm != "" else nn.Identity()
+        self.layernorm = (
+            nn.LayerNorm(n_atom_basis) if layer_norm != "" else nn.Identity()
+        )
         self.tensor_layernorm = (
             TensorLayerNorm(n_atom_basis, trainable=False, lmax=self.lmax)
-            if steerable_norm != "" else nn.Identity()
+            if steerable_norm != ""
+            else nn.Identity()
         )
 
         self.reset_parameters()
@@ -329,11 +352,11 @@ class GATA(MessagePassing):
     def vector_rejection(rep: Tensor, rl_ij: Tensor) -> Tensor:
         """
         Compute the vector rejection of vec onto rl_ij.
-        
+
         Args:
             rep: Input tensor representation [num_edges, (L_max ** 2) - 1, hidden_dims]
             rl_ij: High-degree steerable feature tensor [num_edges, (L_max ** 2) - 1, 1]
-            
+
         Returns:
             The component of vec orthogonal to rl_ij
         """
@@ -397,7 +420,7 @@ class GATA(MessagePassing):
             t_ij_attn=t_ij_attn,
             r_ij=r_ij,
             rl_ij=rl_ij,
-            n_edges=n_edges
+            n_edges=n_edges,
         )
 
         h = h + d_h
@@ -408,10 +431,12 @@ class GATA(MessagePassing):
 
             EQ = self.W_vq(X_htr)
             if self.sep_htr:
-                X_split = torch.split(X_htr, get_split_sizes_from_lmax(self.lmax), dim=1)
-                EK = torch.concat([
-                    w(X_split[i]) for i, w in enumerate(self.W_vk)
-                ], dim=1)
+                X_split = torch.split(
+                    X_htr, get_split_sizes_from_lmax(self.lmax), dim=1
+                )
+                EK = torch.concat(
+                    [w(X_split[i]) for i, w in enumerate(self.W_vk)], dim=1
+                )
             else:
                 EK = self.W_vk(X_htr)
 
@@ -439,14 +464,14 @@ class GATA(MessagePassing):
         n_edges: Tensor,
         index: Tensor,
         ptr: OptTensor,
-        dim_size: Optional[int]
+        dim_size: Optional[int],
     ) -> Tuple[Tensor, Tensor]:
         """
         Compute messages from source nodes to target nodes.
-        
+
         This method implements the message passing mechanism for the GATA layer,
         combining attention-based and spatial filtering approaches.
-        
+
         Args:
             edge_index: Edge connectivity tensor [2, num_edges]
             x_j: Source node features [num_edges, 1, hidden_dims]
@@ -469,7 +494,9 @@ class GATA(MessagePassing):
                 - High-degree steerable updates dX [num_edges, (L_max ** 2) - 1, hidden_dims]
         """
         # Reshape attention features
-        t_ij_attn = t_ij_attn.reshape(-1, self.num_heads, self.n_atom_basis // self.num_heads)
+        t_ij_attn = t_ij_attn.reshape(
+            -1, self.num_heads, self.n_atom_basis // self.num_heads
+        )
 
         # Compute attention scores
         attn = (q_i * k_j * t_ij_attn).sum(dim=-1, keepdim=True)
@@ -486,11 +513,17 @@ class GATA(MessagePassing):
         attn = F.dropout(attn, p=self.dropout, training=self.training)
 
         # Apply attention to values
-        sea_ij = attn * v_j.reshape(-1, self.num_heads, (self.n_atom_basis*self.multiplier) // self.num_heads)
-        sea_ij = sea_ij.reshape(-1, 1, self.n_atom_basis*self.multiplier)
+        sea_ij = attn * v_j.reshape(
+            -1, self.num_heads, (self.n_atom_basis * self.multiplier) // self.num_heads
+        )
+        sea_ij = sea_ij.reshape(-1, 1, self.n_atom_basis * self.multiplier)
 
         # Apply spatial filter
-        spatial_attn = t_ij_filter.unsqueeze(1) * x_j * self.cutoff(r_ij.unsqueeze(-1).unsqueeze(-1))
+        spatial_attn = (
+            t_ij_filter.unsqueeze(1)
+            * x_j
+            * self.cutoff(r_ij.unsqueeze(-1).unsqueeze(-1))
+        )
 
         # Combine attention and spatial components
         outputs = spatial_attn + sea_ij
@@ -503,7 +536,7 @@ class GATA(MessagePassing):
 
         # Process direction components if enabled
         if self.sep_dir:
-            o_d_l_ij, components = components[:self.lmax], components[self.lmax:]
+            o_d_l_ij, components = components[: self.lmax], components[self.lmax :]
             rl_ij_split = split_to_components(rl_ij[..., None], self.lmax, dim=1)
             dir_comps = [rl_ij_split[i] * o_d_l_ij[i] for i in range(self.lmax)]
             dX_R = torch.cat(dir_comps, dim=1)
@@ -513,7 +546,7 @@ class GATA(MessagePassing):
 
         # Process tensor components if enabled
         if self.sep_tensor:
-            o_t_l_ij = components[:self.lmax]
+            o_t_l_ij = components[: self.lmax]
             X_j_split = split_to_components(X_j, self.lmax, dim=1)
             tensor_comps = [X_j_split[i] * o_t_l_ij[i] for i in range(self.lmax)]
             dX_X = torch.cat(tensor_comps, dim=1)
@@ -526,25 +559,21 @@ class GATA(MessagePassing):
         return o_s_ij, dX
 
     def edge_update(
-        self,
-        EQ_i: Tensor,
-        EK_j: Tensor,
-        rl_ij: Tensor,
-        t_ij: Tensor
+        self, EQ_i: Tensor, EK_j: Tensor, rl_ij: Tensor, t_ij: Tensor
     ) -> Tensor:
         """
         Update edge features based on node features.
-        
+
         This method computes updates to edge features by combining information from
         source and target nodes' high-degree steerable features, potentially applying
         vector rejection.
-        
+
         Args:
             EQ_i: Source node high-degree steerable features [num_edges, (L_max ** 2) - 1, hidden_dims]
             EK_j: Target node high-degree steerable features [num_edges, (L_max ** 2) - 1, hidden_dims]
             rl_ij: Edge tensor representation [num_edges, (L_max ** 2) - 1, 1]
             t_ij: Edge scalar features [num_edges, 1, hidden_dims]
-            
+
         Returns:
             Updated edge features [num_edges, 1, hidden_dims]
         """
@@ -590,16 +619,16 @@ class GATA(MessagePassing):
     ) -> Tuple[Tensor, Tensor]:
         """
         Aggregate messages from source nodes to target nodes.
-        
+
         This method implements the aggregation step of message passing, combining
         messages from neighboring nodes according to the specified aggregation method.
-        
+
         Args:
             features: Tuple of scalar and vector features (h, X)
             index: Index tensor for scatter operation
             ptr: Pointer tensor for scatter operation
             dim_size: Dimension size for scatter operation
-            
+
         Returns:
             Tuple containing:
                 - Aggregated scalar features [num_nodes, 1, hidden_dims]
@@ -610,19 +639,16 @@ class GATA(MessagePassing):
         X = scatter(X, index, dim=self.node_dim, dim_size=dim_size, reduce=self.aggr)
         return h, X
 
-    def update(
-        self,
-        inputs: Tuple[Tensor, Tensor]
-    ) -> Tuple[Tensor, Tensor]:
+    def update(self, inputs: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tensor]:
         """
         Update node features with aggregated messages.
-        
+
         This method implements the update step of message passing. In this implementation,
         it simply passes through the aggregated features without additional processing.
-        
+
         Args:
             inputs: Tuple of aggregated scalar and high-degree steerable features
-            
+
         Returns:
             Tuple containing:
                 - Updated scalar features [num_nodes, 1, hidden_dims]
@@ -634,11 +660,11 @@ class GATA(MessagePassing):
 class EQFF(nn.Module):
     """
     Equivariant Feed-Forward (EQFF) Network for mixing atom features.
-    
+
     This module facilitates efficient channel-wise interaction while maintaining equivariance.
     It separates scalar and high-degree steerable features, allowing for specialized processing
     of each feature type before combining them with non-linear mappings as described in the paper:
-    
+
     EQFF(h, X^(l)) = (h + m_1, X^(l) + m_2 * (X^(l)W_{vu}))
     where m_1, m_2 = split_2(gamma_{m}(||X^(l)W_{vu}||_2, h))
     """
@@ -650,11 +676,11 @@ class EQFF(nn.Module):
         lmax: int,
         epsilon: float = 1e-8,
         weight_init: Callable = nn.init.xavier_uniform_,
-        bias_init: Callable = nn.init.zeros_
+        bias_init: Callable = nn.init.zeros_,
     ):
         """
         Initialize EQFF module.
-        
+
         Args:
             n_atom_basis: Number of features to describe atomic environments.
             activation: Activation function. If None, no activation function is used.
@@ -679,9 +705,7 @@ class EQFF(nn.Module):
             InitDense(n_atom_basis, out_size * n_atom_basis, activation=None),
         )
 
-        self.W_vu = InitDense(
-            n_atom_basis, n_atom_basis, activation=None, bias=False
-        )
+        self.W_vu = InitDense(n_atom_basis, n_atom_basis, activation=None, bias=False)
 
     def reset_parameters(self):
         """Reset all learnable parameters of the module."""
@@ -724,18 +748,17 @@ class EQFF(nn.Module):
         return h, X
 
 
-
 class GotenNet(nn.Module):
     """
     Graph Attention Transformer Network for atomic systems.
-    
+
     GotenNet processes and updates two types of node features (invariant and steerable)
     and edge features (invariant) through three main mechanisms:
-    
-    1. GATA (Graph Attention Transformer Architecture): A degree-wise attention-based 
-       message passing layer that updates both invariant and steerable features while 
+
+    1. GATA (Graph Attention Transformer Architecture): A degree-wise attention-based
+       message passing layer that updates both invariant and steerable features while
        preserving equivariance.
-    2. HTR (Hierarchical Tensor Refinement): Updates edge features across degrees with 
+    2. HTR (Hierarchical Tensor Refinement): Updates edge features across degrees with
        inner products of steerable features.
     3. EQFF (Equivariant Feed-Forward): Further processes both types of node features
        while maintaining equivariance.
@@ -745,7 +768,7 @@ class GotenNet(nn.Module):
         self,
         n_atom_basis: int = 128,
         n_interactions: int = 8,
-        radial_basis: Union[Callable, str] = 'expnorm',
+        radial_basis: Union[Callable, str] = "expnorm",
         n_rbf: int = 32,
         cutoff_fn: Optional[Union[Callable, str]] = None,
         activation: Optional[Union[Callable, str]] = F.silu,
@@ -770,7 +793,7 @@ class GotenNet(nn.Module):
     ):
         """
         Initialize GotenNet model.
-        
+
         Args:
             n_atom_basis: Number of features to describe atomic environments.
                 This determines the size of each embedding vector; i.e. embeddings_dim.
@@ -815,10 +838,15 @@ class GotenNet(nn.Module):
         self.cutoff_fn = cutoff_fn
         self.cutoff = cutoff_fn.cutoff
 
-
         self.node_init = NodeInit(
-            [self.hidden_dim, self.hidden_dim], n_rbf, self.cutoff, max_z=max_z, weight_init=weight_init,
-            bias_init=bias_init, proj_ln='layer', activation=activation
+            [self.hidden_dim, self.hidden_dim],
+            n_rbf,
+            self.cutoff,
+            max_z=max_z,
+            weight_init=weight_init,
+            bias_init=bias_init,
+            proj_ln="layer",
+            activation=activation,
         )
 
         self.edge_init = EdgeInit(n_rbf, self.hidden_dim)
@@ -828,29 +856,94 @@ class GotenNet(nn.Module):
         self.A_na = nn.Embedding(max_z, n_atom_basis, padding_idx=0)
         self.sphere = TensorInit(l=lmax)
 
-        self.gata_list = nn.ModuleList([
-            GATA(
-                n_atom_basis=self.n_atom_basis, activation=activation, aggr=aggr,
-                weight_init=weight_init, bias_init=bias_init,
-                layer_norm=layernorm, steerable_norm=steerable_norm, cutoff=self.cutoff, epsilon=epsilon,
-                num_heads=num_heads, dropout=attn_dropout,
-                edge_updates=edge_updates, last_layer=(i == self.n_interactions - 1),
-                scale_edge=scale_edge,
-                evec_dim=evec_dim, emlp_dim=emlp_dim,
-                sep_htr=sep_htr, sep_dir=sep_dir, sep_tensor=sep_tensor, lmax=lmax,
-                edge_ln=edge_ln
-            ) for i in range(self.n_interactions)
-        ])
+        self.gata_list = nn.ModuleList(
+            [
+                GATA(
+                    n_atom_basis=self.n_atom_basis,
+                    activation=activation,
+                    aggr=aggr,
+                    weight_init=weight_init,
+                    bias_init=bias_init,
+                    layer_norm=layernorm,
+                    steerable_norm=steerable_norm,
+                    cutoff=self.cutoff,
+                    epsilon=epsilon,
+                    num_heads=num_heads,
+                    dropout=attn_dropout,
+                    edge_updates=edge_updates,
+                    last_layer=(i == self.n_interactions - 1),
+                    scale_edge=scale_edge,
+                    evec_dim=evec_dim,
+                    emlp_dim=emlp_dim,
+                    sep_htr=sep_htr,
+                    sep_dir=sep_dir,
+                    sep_tensor=sep_tensor,
+                    lmax=lmax,
+                    edge_ln=edge_ln,
+                )
+                for i in range(self.n_interactions)
+            ]
+        )
 
-        self.eqff_list = nn.ModuleList([
-            EQFF(
-                n_atom_basis=self.n_atom_basis, activation=activation, lmax=lmax, epsilon=epsilon,
-                weight_init=weight_init, bias_init=bias_init
-            ) for i in range(self.n_interactions)
-        ])
+        self.eqff_list = nn.ModuleList(
+            [
+                EQFF(
+                    n_atom_basis=self.n_atom_basis,
+                    activation=activation,
+                    lmax=lmax,
+                    epsilon=epsilon,
+                    weight_init=weight_init,
+                    bias_init=bias_init,
+                )
+                for i in range(self.n_interactions)
+            ]
+        )
 
         self.reset_parameters()
 
+    @classmethod
+    def load_from_checkpoint(cls, checkpoint_path: str, device="cpu") -> None:
+        """
+        Load model parameters from a checkpoint.
+
+        Args:
+            checkpoint: Dictionary containing model parameters.
+        """
+        if not os.path.exists(checkpoint_path):
+            raise FileNotFoundError(
+                f"Checkpoint file {checkpoint_path} does not exist."
+            )
+
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+
+        if "representation" in checkpoint:
+            checkpoint = checkpoint["representation"]
+
+        assert "hyper_parameters" in checkpoint, (
+            "Checkpoint must contain 'hyper_parameters' key."
+        )
+        hyper_parameters = checkpoint["hyper_parameters"]
+        assert "representation" in hyper_parameters, (
+            "Hyperparameters must contain 'representation' key."
+        )
+        representation_config = hyper_parameters["representation"]
+        _ = representation_config.pop("_target_", None)
+
+        assert "state_dict" in checkpoint, "Checkpoint must contain 'state_dict' key."
+        original_state_dict = checkpoint["state_dict"]
+        new_state_dict = {}
+        for k, v in original_state_dict.items():
+            if k.startswith("output_modules."):  # Skip output modules
+                continue
+            if k.startswith("representation."):
+                new_k = k.replace("representation.", "")
+                new_state_dict[new_k] = v
+            else:
+                new_state_dict[k] = v
+
+        gotennet = cls(**representation_config)
+        gotennet.load_state_dict(new_state_dict, strict=True)
+        return gotennet
 
     def reset_parameters(self):
         self.node_init.reset_parameters()
@@ -860,16 +953,18 @@ class GotenNet(nn.Module):
         for l in self.eqff_list:
             l.reset_parameters()
 
-    def forward(self, atomic_numbers, edge_index, edge_diff, edge_vec) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, atomic_numbers, edge_index, edge_diff, edge_vec
+    ) -> Tuple[Tensor, Tensor]:
         """
         Compute atomic representations/embeddings.
-        
+
         Args:
             atomic_numbers: Tensor of atomic numbers [num_nodes]
             edge_index: Tensor describing graph connectivity [2, num_edges]
             edge_diff: Tensor of edge distances [num_edges, 1]
             edge_vec: Tensor of edge direction vectors [num_edges, 3]
-            
+
         Returns:
             Tuple containing:
                 - Atomic representation [num_nodes, hidden_dims]
@@ -888,15 +983,27 @@ class GotenNet(nn.Module):
 
         equi_dim = ((self.sphere.l + 1) ** 2) - 1
         # count number of edges for each node
-        num_edges = scatter(torch.ones_like(edge_diff), edge_index[0], dim=0, reduce="sum")
+        num_edges = scatter(
+            torch.ones_like(edge_diff), edge_index[0], dim=0, reduce="sum"
+        )
         n_edges = num_edges[edge_index[0]]
 
         hs = h.shape
         X = torch.zeros((hs[0], equi_dim, hs[1]), device=h.device)
         h.unsqueeze_(1)
         t_ij = t_ij_init
-        for _i, (gata, eqff) in enumerate(zip(self.gata_list, self.eqff_list, strict=False)):
-            h, X, t_ij = gata(edge_index, h, X, rl_ij=rl_ij, t_ij=t_ij, r_ij=edge_diff, n_edges=n_edges) # idx_i, idx_j, n_atoms, # , f_ij=f_ij
+        for _i, (gata, eqff) in enumerate(
+            zip(self.gata_list, self.eqff_list, strict=False)
+        ):
+            h, X, t_ij = gata(
+                edge_index,
+                h,
+                X,
+                rl_ij=rl_ij,
+                t_ij=t_ij,
+                r_ij=edge_diff,
+                n_edges=n_edges,
+            )  # idx_i, idx_j, n_atoms, # , f_ij=f_ij
             h, X = eqff(h, X)
 
         h = h.squeeze(1)
@@ -905,27 +1012,23 @@ class GotenNet(nn.Module):
 
 class GotenNetWrapper(GotenNet):
     """
-    The wrapper around GotenNet for processing atomistic data. 
+    The wrapper around GotenNet for processing atomistic data.
     """
 
-    def __init__(
-        self,
-        *args, 
-        max_num_neighbors=32,
-        **kwargs
-    ):
+    def __init__(self, *args, max_num_neighbors=32, **kwargs):
         super(GotenNetWrapper, self).__init__(*args, **kwargs)
 
-        self.distance = Distance(self.cutoff, max_num_neighbors=max_num_neighbors, loop=True)
+        self.distance = Distance(
+            self.cutoff, max_num_neighbors=max_num_neighbors, loop=True
+        )
         self.reset_parameters()
-
 
     def forward(self, inputs: Mapping[str, Tensor]) -> Tuple[Tensor, Tensor]:
         """
         Compute atomic representations/embeddings.
 
         Args:
-            inputs: Dictionary of input tensors containing atomic_numbers, pos, batch, 
+            inputs: Dictionary of input tensors containing atomic_numbers, pos, batch,
                 edge_index, r_ij, and dir_ij. Shape information:
                 - atomic_numbers: [num_nodes]
                 - pos: [num_nodes, 3]

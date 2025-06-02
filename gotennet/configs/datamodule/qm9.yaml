@@ -28,5 +28,3 @@ hparams:
   save_interval: 1
   prior_model: Atomref
   normalize_positions: false
-
-

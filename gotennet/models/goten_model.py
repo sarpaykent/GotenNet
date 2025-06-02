@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.optim as opt
+from omegaconf import DictConfig
 
 from gotennet.utils import get_logger
 
@@ -14,18 +15,30 @@ from ..utils.utils import get_function_name
 # Local application/library specific imports
 from .tasks import TASK_DICT
 
-BaseModuleType = TypeVar('BaseModelType', bound='nn.Module')
+BaseModuleType = TypeVar("BaseModelType", bound="nn.Module")
 
 log = get_logger(__name__)
+
+
+def lazy_instantiate(d):
+    if isinstance(d, dict) or isinstance(d, DictConfig):
+        for k, v in d.items():
+            if k == "__target__":
+                log.info(f"Lazy instantiation of {v} with hydra.utils.instantiate")
+                d["_target_"] = d.pop("__target__")
+            elif isinstance(v, dict) or isinstance(v, DictConfig):
+                lazy_instantiate(v)
+    return d
 
 
 class GotenModel(pl.LightningModule):
     """
     Atomistic model for molecular property prediction.
-    
+
     This model combines a representation module with task-specific output modules
     to predict molecular properties.
     """
+
     def __init__(
         self,
         label: int,
@@ -45,11 +58,11 @@ class GotenModel(pl.LightningModule):
         task_config: Optional[Dict] = None,
         lr_warmup_steps: int = 0,
         use_ema: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize the atomistic model.
-        
+
         Args:
             label: Target property index to predict.
             representation: Neural network module for atom/molecule representation.
@@ -82,30 +95,8 @@ class GotenModel(pl.LightningModule):
         self.task = task
         self.label = label
 
-        if self.task in TASK_DICT:
-            self.task_handler = TASK_DICT[self.task](
-                representation,
-                label,
-                dataset_meta,
-                task_config=task_config
-            )
-            self.evaluator = self.task_handler.get_evaluator()
-        else:
-            self.task_handler = None
-            self.evaluator = None
-
         self.train_meta = []
         self.train_metrics = []
-        self.val_meta = self.get_metrics()
-        self.val_metrics = nn.ModuleList([
-            v['metric']()
-            for v in self.val_meta
-        ])
-        self.test_meta = self.get_metrics()
-        self.test_metrics = nn.ModuleList([
-            v['metric']()
-            for v in self.test_meta
-        ])
 
         self.cutoff = cutoff
         self.lr = lr
@@ -114,29 +105,67 @@ class GotenModel(pl.LightningModule):
         self.lr_monitor = lr_monitor
         self.weight_decay = weight_decay
         self.dataset_meta = dataset_meta
+        _dataset_obj = (
+            dataset_meta.pop("dataset")
+            if dataset_meta and "dataset" in dataset_meta
+            else None
+        )
 
         self.scheduler = scheduler
 
         self.save_hyperparameters()
 
+        if isinstance(representation, DictConfig) and (
+            "__target__" in representation or "_target_" in representation
+        ):
+            import hydra
+
+            lazy_instantiate(representation)
+            representation = hydra.utils.instantiate(representation)
+
         self.representation = representation
+
+        if self.task in TASK_DICT:
+            self.task_handler = TASK_DICT[self.task](
+                representation, label, dataset_meta, task_config=task_config
+            )
+            self.evaluator = self.task_handler.get_evaluator()
+        else:
+            self.task_handler = None
+            self.evaluator = None
+
+        self.val_meta = self.get_metrics()
+        self.val_metrics = nn.ModuleList([v["metric"]() for v in self.val_meta])
+        self.test_meta = self.get_metrics()
+        self.test_metrics = nn.ModuleList([v["metric"]() for v in self.test_meta])
+
         self.output_modules = self.get_output(output)
 
         self.loss_meta = self.get_losses()
         for loss in self.loss_meta:
             if "ema_rate" in loss:
                 if "ema_stages" not in loss:
-                    loss["ema_stages"] = ['train', 'validation']
+                    loss["ema_stages"] = ["train", "validation"]
         self.loss_metrics = self.get_losses()
         self.loss_modules = nn.ModuleList([l["metric"]() for l in self.get_losses()])
 
         self.ema = {}
         for loss in self.get_losses():
-            for stage in ['train', 'validation', 'test']:
-                self.ema[f'{stage}_{loss["target"]}'] = None
+            for stage in ["train", "validation", "test"]:
+                self.ema[f"{stage}_{loss['target']}"] = None
 
         # For gradients
         self.requires_dr = any([om.derivative for om in self.output_modules])
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        checkpoint_url: str,  # Input is always a string
+    ):
+        from gotennet.utils.file import download_checkpoint
+
+        ckpt_path = download_checkpoint(checkpoint_url)
+        return cls.load_from_checkpoint(ckpt_path)
 
     def configure_model(self) -> None:
         """
@@ -147,10 +176,10 @@ class GotenModel(pl.LightningModule):
     def get_losses(self) -> list:
         """
         Get loss functions for the model.
-        
+
         Returns:
             list: List of loss function configurations.
-            
+
         Raises:
             NotImplementedError: If task handler is not available.
         """
@@ -162,10 +191,10 @@ class GotenModel(pl.LightningModule):
     def get_metrics(self) -> list:
         """
         Get metrics for model evaluation.
-        
+
         Returns:
             list: List of metric configurations.
-            
+
         Raises:
             NotImplementedError: If task is not implemented.
         """
@@ -174,24 +203,24 @@ class GotenModel(pl.LightningModule):
         else:
             raise NotImplementedError(f"Task not implemented {self.task}")
 
-    def get_phase_metric(self, phase: str = 'train') -> tuple:
+    def get_phase_metric(self, phase: str = "train") -> tuple:
         """
         Get metrics for a specific training phase.
-        
+
         Args:
             phase: Training phase ('train', 'validation', or 'test'). Default is 'train'.
-            
+
         Returns:
             tuple: Tuple of (metric_meta, metric_modules).
-            
+
         Raises:
             NotImplementedError: If phase is not recognized.
         """
-        if phase == 'train':
+        if phase == "train":
             return self.train_meta, self.train_metrics
-        elif phase == 'validation':
+        elif phase == "validation":
             return self.val_meta, self.val_metrics
-        elif phase == 'test':
+        elif phase == "test":
             return self.test_meta, self.test_metrics
 
         raise NotImplementedError()
@@ -199,13 +228,13 @@ class GotenModel(pl.LightningModule):
     def get_output(self, output_config: Optional[Dict] = None) -> list:
         """
         Get output modules based on configuration.
-        
+
         Args:
             output_config: Configuration for output modules. Default is None.
-            
+
         Returns:
             list: List of output modules.
-            
+
         Raises:
             NotImplementedError: If task is not implemented.
         """
@@ -217,10 +246,10 @@ class GotenModel(pl.LightningModule):
     def _get_num_graphs(self, batch) -> int:
         """
         Get the number of graphs in a batch.
-        
+
         Args:
             batch: Batch of data.
-            
+
         Returns:
             int: Number of graphs in the batch.
         """
@@ -232,10 +261,10 @@ class GotenModel(pl.LightningModule):
     def calculate_output(self, batch) -> Dict:
         """
         Calculate model outputs for a batch.
-        
+
         Args:
             batch: Batch of data.
-            
+
         Returns:
             Dict: Dictionary of model outputs.
         """
@@ -247,11 +276,11 @@ class GotenModel(pl.LightningModule):
     def training_step(self, batch, batch_idx) -> torch.Tensor:
         """
         Perform a training step.
-        
+
         Args:
             batch: Batch of data.
             batch_idx: Index of the batch.
-            
+
         Returns:
             torch.Tensor: Loss value.
         """
@@ -266,12 +295,12 @@ class GotenModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx, dataloader_idx: int = 0) -> Dict:
         """
         Perform a validation step.
-        
+
         Args:
             batch: Batch of data.
             batch_idx: Index of the batch.
             dataloader_idx: Index of the dataloader. Default is 0.
-            
+
         Returns:
             Dict: Dictionary of validation losses and outputs.
         """
@@ -287,21 +316,21 @@ class GotenModel(pl.LightningModule):
         self.log_metrics(batch, result, "validation")
         torch.set_grad_enabled(False)
 
-        losses = {'val_loss': val_loss}
+        losses = {"val_loss": val_loss}
         self.log(
             "validation/val_loss",
             val_loss,
             prog_bar=True,
             on_step=False,
             on_epoch=True,
-            batch_size=self._get_num_graphs(batch)
+            batch_size=self._get_num_graphs(batch),
         )
         if self.evaluator:
             eval_keys = self.task_handler.get_evaluation_keys()
 
-            losses['outputs'] = {
-                "y_pred": result[eval_keys['pred']].detach().cpu(),
-                "y_true": batch[eval_keys['target']].detach().cpu()
+            losses["outputs"] = {
+                "y_pred": result[eval_keys["pred"]].detach().cpu(),
+                "y_true": batch[eval_keys["target"]].detach().cpu(),
             }
 
         return losses
@@ -309,12 +338,12 @@ class GotenModel(pl.LightningModule):
     def test_step(self, batch, batch_idx, dataloader_idx: int = 0) -> Dict:
         """
         Perform a test step.
-        
+
         Args:
             batch: Batch of data.
             batch_idx: Index of the batch.
             dataloader_idx: Index of the dataloader. Default is 0.
-            
+
         Returns:
             Dict: Dictionary of test losses and outputs.
         """
@@ -339,9 +368,9 @@ class GotenModel(pl.LightningModule):
         if self.evaluator:
             eval_keys = self.task_handler.get_evaluation_keys()
 
-            losses['outputs'] = {
-                "y_pred": result[eval_keys['pred']].detach().cpu(),
-                "y_true": batch[eval_keys['target']].detach().cpu()
+            losses["outputs"] = {
+                "y_pred": result[eval_keys["pred"]].detach().cpu(),
+                "y_true": batch[eval_keys["target"]].detach().cpu(),
             }
 
         return losses
@@ -349,10 +378,10 @@ class GotenModel(pl.LightningModule):
     def encode(self, batch) -> object:
         """
         Encode a batch of data.
-        
+
         Args:
             batch: Batch of data.
-            
+
         Returns:
             batch: Batch with added representation.
         """
@@ -364,10 +393,10 @@ class GotenModel(pl.LightningModule):
     def forward(self, batch) -> Dict:
         """
         Forward pass through the model.
-        
+
         Args:
             batch: Batch of data.
-            
+
         Returns:
             Dict: Model outputs.
         """
@@ -382,17 +411,21 @@ class GotenModel(pl.LightningModule):
     def log_metrics(self, batch, result, mode: str) -> None:
         """
         Log metrics for a specific mode.
-        
+
         Args:
             batch: Batch of data.
             result: Model outputs.
             mode: Mode ('train', 'validation', or 'test').
         """
-        for idx, (metric_meta, metric_module) in enumerate(zip(*self.get_phase_metric(mode), strict=False)):
+        for idx, (metric_meta, metric_module) in enumerate(
+            zip(*self.get_phase_metric(mode), strict=False)
+        ):
             loss_fn = metric_module
 
             if "target" in metric_meta.keys():
-                pred, targets = self.task_handler.process_outputs(batch, result, metric_meta, idx)
+                pred, targets = self.task_handler.process_outputs(
+                    batch, result, metric_meta, idx
+                )
 
                 pred = pred[:, :] if metric_meta["prediction"] == "force" else pred
                 loss_i = loss_fn(pred, targets).detach().item()
@@ -409,18 +442,18 @@ class GotenModel(pl.LightningModule):
                 loss_i,
                 on_step=False,
                 on_epoch=True,
-                batch_size=self._get_num_graphs(batch)
+                batch_size=self._get_num_graphs(batch),
             )
 
     def calculate_loss(self, batch, result, name: Optional[str] = None) -> torch.Tensor:
         """
         Calculate loss for a batch.
-        
+
         Args:
             batch: Batch of data.
             result: Model outputs.
             name: Name of the phase ('train', 'validation', or 'test'). Default is None.
-            
+
         Returns:
             torch.Tensor: Loss value.
         """
@@ -432,25 +465,33 @@ class GotenModel(pl.LightningModule):
             loss_fn = self.loss_modules[loss_index]
 
             if "target" in loss_dict.keys():
-                pred, targets = self.task_handler.process_outputs(batch, result, loss_dict, loss_index)
+                pred, targets = self.task_handler.process_outputs(
+                    batch, result, loss_dict, loss_index
+                )
                 loss_i = loss_fn(pred, targets)
             else:
                 loss_i = loss_fn(result[loss_dict["prediction"]])
 
-            ema_addon = ''
+            ema_addon = ""
             if self.use_ema:
                 og_loss += loss_dict["loss_weight"] * loss_i
 
             # Check if EMA should be calculated
-            if 'ema_rate' in loss_dict and name in loss_dict['ema_stages'] and (1.0 > loss_dict['ema_rate'] > 0.0):
+            if (
+                "ema_rate" in loss_dict
+                and name in loss_dict["ema_stages"]
+                and (1.0 > loss_dict["ema_rate"] > 0.0)
+            ):
                 # Calculate EMA loss
-                ema_key = f'{name}_{loss_dict["target"]}'
-                ema_addon = '_ema'
+                ema_key = f"{name}_{loss_dict['target']}"
+                ema_addon = "_ema"
                 if self.ema[ema_key] is None:
                     self.ema[ema_key] = loss_i.detach()
                 else:
-                    loss_ema = loss_dict['ema_rate'] * loss_i + (
-                        1 - loss_dict['ema_rate']) * self.ema[ema_key]
+                    loss_ema = (
+                        loss_dict["ema_rate"] * loss_i
+                        + (1 - loss_dict["ema_rate"]) * self.ema[ema_key]
+                    )
                     self.ema[ema_key] = loss_ema.detach()
                     if self.use_ema:
                         loss_i = loss_ema
@@ -462,7 +503,7 @@ class GotenModel(pl.LightningModule):
                     on_step=True if name == "train" else False,
                     on_epoch=True,
                     prog_bar=True if name == "train" else False,
-                    batch_size=self._get_num_graphs(batch)
+                    batch_size=self._get_num_graphs(batch),
                 )
             loss += loss_dict["loss_weight"] * loss_i
 
@@ -472,7 +513,7 @@ class GotenModel(pl.LightningModule):
                 og_loss,
                 on_step=True if name == "train" else False,
                 on_epoch=True,
-                batch_size=self._get_num_graphs(batch)
+                batch_size=self._get_num_graphs(batch),
             )
 
         return loss
@@ -480,7 +521,7 @@ class GotenModel(pl.LightningModule):
     def configure_optimizers(self) -> tuple:
         """
         Configure optimizers and learning rate schedulers.
-        
+
         Returns:
             tuple: Tuple of (optimizers, schedulers).
         """
@@ -493,7 +534,9 @@ class GotenModel(pl.LightningModule):
         )
 
         if self.scheduler:
-            scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, **self.scheduler)
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer=optimizer, **self.scheduler
+            )
         else:
             scheduler = opt.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
@@ -515,7 +558,7 @@ class GotenModel(pl.LightningModule):
     def optimizer_step(self, *args, **kwargs) -> None:
         """
         Perform an optimizer step with learning rate warmup.
-        
+
         Args:
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
@@ -523,7 +566,11 @@ class GotenModel(pl.LightningModule):
         optimizer = kwargs["optimizer"] if "optimizer" in kwargs else args[2]
 
         if self.trainer.global_step < self.hparams.lr_warmup_steps:
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / float(self.hparams.lr_warmup_steps))
+            lr_scale = min(
+                1.0,
+                float(self.trainer.global_step + 1)
+                / float(self.hparams.lr_warmup_steps),
+            )
             for pg in optimizer.param_groups:
                 pg["lr"] = lr_scale * self.hparams.lr
 
@@ -533,7 +580,7 @@ class GotenModel(pl.LightningModule):
     def _enable_grads(self, batch) -> None:
         """
         Enable gradients for position tensor if derivatives are required.
-        
+
         Args:
             batch: Batch of data.
         """

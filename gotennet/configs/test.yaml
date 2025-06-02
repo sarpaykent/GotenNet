@@ -6,9 +6,8 @@ defaults:
   - datamodule: qm9.yaml
   - model: gotennet.yaml
   - callbacks: default.yaml
-  - logger: default.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - logger: default.yaml
   - trainer: default.yaml
-  - log_dir: default.yaml
 
   # experiment configs allow for version control of specific configurations
   # e.g. best hyperparameters for each combination of model and datamodule
@@ -26,7 +25,6 @@ defaults:
   - hydra: default.yaml
 #  - override /hydra/launcher: joblib
 
-
 original_work_dir: ${hydra:runtime.cwd}
 
 data_dir: ${original_work_dir}/data/
@@ -35,7 +33,7 @@ print_config: True
 
 ignore_warnings: True
 
-seed: null
+seed: 42
 # default name for the experiment, determines logging folder path
 # (you can overwrite this name in experiment configs)
 name: "default"
@@ -45,4 +43,5 @@ project: "gotennet"
 label: -1
 label_str: -1
 # passing checkpoint path is necessary
-ckpt_path: ???
+ckpt_path: null
+checkpoint: null

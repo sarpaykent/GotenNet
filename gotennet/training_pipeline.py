@@ -49,40 +49,44 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
             hydra.utils.get_original_cwd(), ckpt_path
         )
 
-
     # Init lightning datamodule
     log.info(f"Instantiating datamodule <{cfg.datamodule._target_}>")
     datamodule: LightningDataModule = hydra.utils.instantiate(cfg.datamodule)
 
     cfg.label_str = str(cfg.label)
-    cfg.name = cfg.label_str + '_' + cfg.name
+    cfg.name = cfg.label_str + "_" + cfg.name
 
     log.info(f"Label string is: {cfg.label_str}")
 
-    if type(cfg.label) == str and hasattr(datamodule, 'dataset_class'):
+    if type(cfg.label) == str and hasattr(datamodule, "dataset_class"):
         cfg.label = datamodule.dataset_class().label_to_idx(cfg.label)
         log.info(f"Label {cfg.label} is mapped to index {cfg.label}")
 
         datamodule.label = cfg.label
 
-    dataset_meta = datamodule.get_metadata(cfg.label) if hasattr(datamodule, 'get_metadata') else None
-
+    dataset_meta = (
+        datamodule.get_metadata(cfg.label)
+        if hasattr(datamodule, "get_metadata")
+        else None
+    )
 
     # Init lightning model
     log.info(f"Instantiating model <{cfg.model._target_}>")
 
-    model: LightningModule = hydra.utils.instantiate(cfg.model, dataset_meta=dataset_meta)
+    model: LightningModule = hydra.utils.instantiate(
+        cfg.model, dataset_meta=dataset_meta
+    )
 
     # Init lightning callbacks
     callbacks: List[Callback] = []
     if "callbacks" in cfg:
         for name, cb_conf in cfg.callbacks.items():
-            if cfg.exp and name in ['learning_rate_monitor']:
+            if cfg.exp and name in ["learning_rate_monitor"]:
                 continue
             if "_target_" in cb_conf:
                 log.info(f"Instantiating callback <{cb_conf._target_}>")
                 callbacks.append(hydra.utils.instantiate(cb_conf))
-                
+
     # Init lightning loggers
     logger: List[Logger] = []
     if "logger" in cfg and not cfg.exp:
@@ -91,13 +95,16 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
                 log.info(f"Instantiating logger <{lg_conf._target_}>")
                 logger.append(hydra.utils.instantiate(lg_conf))
 
-
     # Init lightning trainer
     log.info(f"Instantiating trainer <{cfg.trainer._target_}>")
 
     # profiler = PyTorchProfiler()
     trainer: Trainer = hydra.utils.instantiate(
-        cfg.trainer, callbacks=callbacks, logger=logger, _convert_="partial", inference_mode=False
+        cfg.trainer,
+        callbacks=callbacks,
+        logger=logger,
+        _convert_="partial",
+        inference_mode=False,
     )
     # trainer = Trainer(barebones=True)
     datamodule.device = model.device
@@ -110,7 +117,7 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
         "logger": logger,
         "trainer": trainer,
     }
-    
+
     # Send some parameters from config to all lightning loggers
     log.info("Logging hyperparameters!")
     gotennet.utils.logging_utils.log_hyperparameters(
@@ -160,4 +167,3 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
     metric_dict = {**train_metrics, **test_metrics}
 
     return metric_dict, object_dict
-

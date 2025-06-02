@@ -16,34 +16,33 @@ config_dir = find_config_directory()
 torch.backends.cuda.matmul.allow_tf32 = False
 
 
-@hydra.main(version_base="1.3", config_path=config_dir, config_name="train.yaml")
+@hydra.main(version_base="1.3", config_path=config_dir, config_name="test.yaml")
 def main(cfg: DictConfig) -> float:
     """
-    Main training function called by Hydra.
+    Main testing function called by Hydra.
 
-    This function serves as the entry point for the training process. It imports
+    This function serves as the entry point for the test process. It imports
     necessary modules, applies optional utilities, trains the model, and returns
     the optimized metric value.
 
     Args:
         cfg (DictConfig): Configuration composed by Hydra from command line arguments
-                         and config files. Contains all parameters for training.
+                         and config files. Contains all parameters for test.
 
     Returns:
-        float: Value of the optimized metric for hyperparameter optimization.
+        float: Value of the metric for tests.
     """
     # Imports can be nested inside @hydra.main to optimize tab completion
     # https://github.com/facebookresearch/hydra/issues/934
     from gotennet import utils
-    from gotennet.training_pipeline import train
+    from gotennet.testing_pipeline import test
 
     # Applies optional utilities
     utils.extras(cfg)
 
     # Train model
-    metric_dict, _ = train(cfg)
+    metric_dict, _ = test(cfg)
 
-    # Safely retrieve metric value for hydra-based hyperparameter optimization
     metric_value = utils.get_metric_value(
         metric_dict=metric_dict,
         metric_name=cfg.get("optimized_metric"),

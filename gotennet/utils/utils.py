@@ -4,14 +4,63 @@ Utility functions for the GotenNet project.
 
 from __future__ import absolute_import, division, print_function
 
+import os
 from importlib.util import find_spec
 from typing import Callable
 
 from omegaconf import DictConfig
 
-from gotennet.utils import pylogger
+from gotennet.utils.logging_utils import get_logger
 
-log = pylogger.get_pylogger(__name__)
+log = get_logger(__name__)
+
+
+def find_config_directory() -> str:
+    """
+    Find the configs directory by searching in multiple locations.
+
+    Returns:
+        str: Absolute path to the configs directory.
+
+    Raises:
+        FileNotFoundError: If configs directory is not found in any search location.
+    """
+    package_location = os.path.dirname(
+        os.path.realpath(__file__)
+    )  # This will be utils.py's location
+    current_dir = os.getcwd()
+
+    # Define search paths in order of preference
+    search_paths = [
+        os.path.join(current_dir, "configs"),  # Check for configs in CWD
+        os.path.join(
+            current_dir, "gotennet", "configs"
+        ),  # Check for gotennet/configs in CWD (e.g. running from project root)
+        os.path.abspath(
+            os.path.join(package_location, "..", "configs")
+        ),  # Check for ../configs relative to utils.py (i.e. gotennet/configs)
+    ]
+
+    # Search for configs directory
+    for path in search_paths:
+        if os.path.exists(path) and os.path.isdir(path):
+            # Set PROJECT_ROOT environment variable based on current_dir
+            # This assumes that if configs are found, current_dir is likely the project root.
+            os.environ["PROJECT_ROOT"] = current_dir
+            return os.path.abspath(path)
+
+    # If no configs directory found, raise detailed error
+    searched_paths_str = "\n".join(
+        f"  - {p}" for p in search_paths
+    )  # Renamed variable to avoid conflict
+    raise FileNotFoundError(
+        f"Could not find 'configs' directory in any of the following locations:\n"
+        f"{searched_paths_str}\n\n"
+        f"Please ensure the 'configs' directory exists in one of these locations.\n"
+        f"Current working directory: {current_dir}\n"
+        f"Package location (of this util.py file): {package_location}"
+    )
+
 
 def task_wrapper(task_func: Callable) -> Callable:
     """
@@ -22,13 +71,13 @@ def task_wrapper(task_func: Callable) -> Callable:
     - save the exception to a `.log` file
     - mark the run as failed with a dedicated file in the `logs/` folder (so we can find and rerun it later)
     - etc. (adjust depending on your needs)
-    
+
     Args:
         task_func: The task function to wrap.
-        
+
     Returns:
         Callable: The wrapped function.
-        
+
     Example:
         ```
         @utils.task_wrapper
