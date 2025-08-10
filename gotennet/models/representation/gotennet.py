@@ -1,6 +1,9 @@
 # Standard library imports
+import os
 from functools import partial
 from typing import Callable, List, Mapping, Optional, Tuple, Union
+
+import e3nn.o3
 
 # Related third-party imports
 import numpy as np
@@ -21,7 +24,6 @@ from gotennet.models.components.layers import (
     Distance,
     EdgeInit,
     NodeInit,
-    TensorInit,
     TensorLayerNorm,
     get_weight_init_by_string,
     str2act,
@@ -837,6 +839,7 @@ class GotenNet(nn.Module):
         self.n_interactions = n_interactions
         self.cutoff_fn = cutoff_fn
         self.cutoff = cutoff_fn.cutoff
+        self.lmax = lmax
 
         self.node_init = NodeInit(
             [self.hidden_dim, self.hidden_dim],
@@ -854,7 +857,8 @@ class GotenNet(nn.Module):
         radial_basis = str2basis(radial_basis)
         self.radial_basis = radial_basis(cutoff=self.cutoff, n_rbf=n_rbf)
         self.A_na = nn.Embedding(max_z, n_atom_basis, padding_idx=0)
-        self.sphere = TensorInit(l=lmax)
+        self.sh_irreps = e3nn.o3.Irreps.spherical_harmonics(lmax)
+        self.sphere = e3nn.o3.SphericalHarmonics(self.sh_irreps, normalize=False, normalization="norm")
 
         self.gata_list = nn.ModuleList(
             [
@@ -979,9 +983,9 @@ class GotenNet(nn.Module):
         r0_ij = torch.norm(edge_vec[mask], dim=1).unsqueeze(1)
         edge_vec[mask] = edge_vec[mask] / r0_ij
 
-        rl_ij = self.sphere(edge_vec)
+        rl_ij = self.sphere(edge_vec)[:, 1:]
 
-        equi_dim = ((self.sphere.l + 1) ** 2) - 1
+        equi_dim = ((self.lmax + 1) ** 2) - 1
         # count number of edges for each node
         num_edges = scatter(
             torch.ones_like(edge_diff), edge_index[0], dim=0, reduce="sum"
