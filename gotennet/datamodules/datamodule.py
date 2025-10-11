@@ -11,6 +11,7 @@ from tqdm import tqdm
 from gotennet import utils
 
 from .components.qm9 import QM9
+from .components.rmd17 import rMD17
 from .components.utils import MissingLabelException, make_splits
 
 log = utils.get_logger(__name__)
@@ -298,5 +299,42 @@ class DataModule(LightningDataModule):
             join(self.hparams["output_dir"], "splits.npz"),
             self.hparams["splits"],
         )
+
+        return idx_train, idx_val, idx_test
+
+    def _prepare_rMD17(self):
+        self.dataset = rMD17(root=self.hparams["dataset_root"], dataset_arg=self.hparams["dataset_arg"])
+
+        train_size = self.hparams["train_size"]
+        val_size = self.hparams["val_size"]
+
+        splits = self.hparams.get("splits", None)
+        if splits is not None:
+            split_idxs = self.dataset.get_split(splits)
+            assert len(split_idxs) == 2, "Expected two splits"
+            assert len(split_idxs[
+                           0]) == train_size + val_size, f"Expected train+val{train_size + val_size} size != {len(split_idxs[0])} size"
+            # idx_train, idx_val = split_idxs[0][:train_size], split_idxs[0][train_size:]
+            idx_train, idx_val, _ = make_splits(
+                len(split_idxs[0]),
+                train_size,
+                val_size,
+                None,
+                self.hparams["seed"],
+                join(self.hparams["output_dir"], "splits.npz"),
+                splits=None,
+            )
+            idx_test = split_idxs[1]
+            print(f"[ID: {splits}] train {len(idx_train)}, val {len(idx_val)}, test {len(idx_test)}")
+        else:
+            idx_train, idx_val, idx_test = make_splits(
+                len(self.dataset),
+                train_size,
+                val_size,
+                None,
+                self.hparams["seed"],
+                join(self.hparams["output_dir"], "splits.npz"),
+                self.hparams["splits"],
+            )
 
         return idx_train, idx_val, idx_test

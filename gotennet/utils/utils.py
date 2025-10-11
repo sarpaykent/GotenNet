@@ -32,15 +32,14 @@ def find_config_directory() -> str:
 
     # Define search paths in order of preference
     search_paths = [
-        os.path.join(current_dir, "configs"),  # Check for configs in CWD
         os.path.join(
             current_dir, "gotennet", "configs"
         ),  # Check for gotennet/configs in CWD (e.g. running from project root)
         os.path.abspath(
             os.path.join(package_location, "..", "configs")
         ),  # Check for ../configs relative to utils.py (i.e. gotennet/configs)
+        os.path.join(current_dir, "configs"),  # Check for configs in CWD
     ]
-
     # Search for configs directory
     for path in search_paths:
         if os.path.exists(path) and os.path.isdir(path):
