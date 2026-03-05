@@ -1,0 +1,64 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /datamodule: rmd17.yaml
+  - override /model: gotennet.yaml
+  - override /callbacks: default.yaml
+  - override /logger: wandb.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - override /trainer: default.yaml
+
+datamodule:
+  hparams:
+    seed: 1
+    standardize: true
+    splits: 0
+    inference_batch_size: 4
+
+label: "aspirin"
+model:
+  lr: 0.0002
+  lr_warmup_steps: 1000
+  lr_monitor: "validation/val_loss"
+  lr_minlr: 1.e-07
+  lr_patience: 30
+  weight_decay: 0.0
+  use_ema: True
+  task_config:
+    task_loss: "MSELoss"
+    ema_rates:
+        - 0.05
+        - 1.00
+    loss_weights:
+        - 0.05
+        - 0.95
+
+  representation:
+    n_interactions: 16
+    n_atom_basis: 192
+    radial_basis: "expnorm"
+    n_rbf: 32
+    edge_updates: "linw_mlpa"
+    lmax: 2
+    evec_dim: 768
+    emlp_dim: 768
+
+  output:
+    n_hidden: 256
+
+
+trainer:
+  max_epochs: 3000
+  inference_mode: False
+
+callbacks:
+  early_stopping:
+    monitor: "validation/val_loss_og"
+    patience: 1000 
+  model_checkpoint:
+    monitor: "validation/val_loss_og"
+project: "gotennet_rmd17"
+
+task: "rMD17"

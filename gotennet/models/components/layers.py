@@ -878,7 +878,7 @@ class Distance(nn.Module):
 
         if self.loop:
             mask = edge_index[0] != edge_index[1]
-            edge_weight = torch.zeros(edge_vec.size(0), device=edge_vec.device)
+            edge_weight = torch.zeros(edge_vec.size(0), device=edge_vec.device, dtype=edge_vec.dtype)
             edge_weight[mask] = torch.norm(edge_vec[mask], dim=-1)
         else:
             edge_weight = torch.norm(edge_vec, dim=-1)
