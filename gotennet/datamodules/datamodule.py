@@ -315,7 +315,7 @@ class DataModule(LightningDataModule):
             assert len(split_idxs[
                            0]) == train_size + val_size, f"Expected train+val{train_size + val_size} size != {len(split_idxs[0])} size"
             # idx_train, idx_val = split_idxs[0][:train_size], split_idxs[0][train_size:]
-            idx_train, idx_val, _ = make_splits(
+            idx_train_local, idx_val_local, _ = make_splits(
                 len(split_idxs[0]),
                 train_size,
                 val_size,
@@ -324,6 +324,9 @@ class DataModule(LightningDataModule):
                 join(self.hparams["output_dir"], "splits.npz"),
                 splits=None,
             )
+            train_val = torch.tensor(split_idxs[0])
+            idx_train = train_val[idx_train_local]
+            idx_val = train_val[idx_val_local]
             idx_test = split_idxs[1]
             print(f"[ID: {splits}] train {len(idx_train)}, val {len(idx_val)}, test {len(idx_test)}")
         else:
